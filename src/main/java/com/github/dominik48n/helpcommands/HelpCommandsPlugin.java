@@ -5,6 +5,7 @@ import static com.github.dominik48n.helpcommands.Constants.VERSION;
 import com.github.dominik48n.helpcommands.config.ConfigAdapter;
 import com.google.common.reflect.TypeToken;
 import com.google.inject.Inject;
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -43,7 +44,7 @@ public class HelpCommandsPlugin {
         this.dataFolder = dataFolder;
     }
 
-    @Subscribe
+    @Subscribe(order = PostOrder.LAST)
     public void handleProxyInitialize(final ProxyInitializeEvent event) {
         final File configFile = new File(this.dataFolder.toFile(), CONFIG_NAME);
         if (configFile.getParentFile().mkdirs() || !configFile.exists()) {
@@ -73,13 +74,28 @@ public class HelpCommandsPlugin {
         for (final ConfigurationNode node : configAdapter.getChildrenList()) {
             final List<String> aliases;
             try {
-                aliases = node.getNode("alias").getList(stringToken, new ArrayList<>());
+                aliases = new ArrayList<>(node.getNode("alias").getList(stringToken, new ArrayList<>()));
             } catch (final ObjectMappingException e) {
                 this.logger.error("Cannot get command aliases.", e);
                 continue;
             }
 
             if (aliases.isEmpty()) {
+                this.logger.warn("No configured command without aliases was found!");
+                continue;
+            }
+
+            for (final String alias : aliases) {
+                if (this.server.getCommandManager().getCommandMeta(alias) == null) {
+                    continue;
+                }
+
+                aliases.remove(alias);
+                this.logger.warn("The alias \"{}\" is already in use and is therefore skipped.", alias);
+            }
+
+            if (aliases.isEmpty()) {
+                this.logger.warn("A command for which there are no free aliases was found and will not be registered.");
                 continue;
             }
 
@@ -92,5 +108,7 @@ public class HelpCommandsPlugin {
                 new HelpCommand(node)
             );
         }
+
+        // TODO: Call velocity event
     }
 }
