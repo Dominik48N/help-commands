@@ -3,6 +3,7 @@ package com.github.dominik48n.helpcommands;
 import static com.github.dominik48n.helpcommands.Constants.CONFIG_NAME;
 import static com.github.dominik48n.helpcommands.Constants.VERSION;
 import com.github.dominik48n.helpcommands.config.ConfigAdapter;
+import com.github.dominik48n.helpcommands.event.LoadedHelpCommandsEvent;
 import com.google.common.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.PostOrder;
@@ -71,6 +72,8 @@ public class HelpCommandsPlugin {
         }
 
         final TypeToken<String> stringToken = TypeToken.of(String.class);
+        final List<String> allAliases = new ArrayList<>();
+        int registeredCommands = 0;
         for (final ConfigurationNode node : configAdapter.getChildrenList()) {
             final List<String> aliases;
             try {
@@ -107,8 +110,16 @@ public class HelpCommandsPlugin {
                     .build(),
                 new HelpCommand(node)
             );
+            registeredCommands++;
+            allAliases.addAll(aliases);
         }
 
-        // TODO: Call velocity event
+        this.server.getEventManager().fireAndForget(new LoadedHelpCommandsEvent(allAliases, registeredCommands));
+
+        if (registeredCommands > 0) {
+            this.logger.info("{} help commands with {} aliases were registered.", registeredCommands, allAliases.size());
+        } else {
+            this.logger.warn("No help commands were registered.");
+        }
     }
 }
