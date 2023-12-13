@@ -21,6 +21,16 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
 }
 
+sourceSets {
+    main {
+        blossom {
+            javaSources {
+                property("version", project.version.toString())
+            }
+        }
+    }
+}
+
 tasks.getByName<Test>("test") {
     useJUnitPlatform()
 }
