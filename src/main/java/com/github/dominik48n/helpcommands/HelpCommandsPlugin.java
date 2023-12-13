@@ -3,6 +3,7 @@ package com.github.dominik48n.helpcommands;
 import static com.github.dominik48n.helpcommands.Constants.CONFIG_NAME;
 import static com.github.dominik48n.helpcommands.Constants.VERSION;
 import com.github.dominik48n.helpcommands.config.ConfigAdapter;
+import com.google.common.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
@@ -14,7 +15,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import ninja.leaping.configurate.yaml.YAMLConfigurationLoader;
+import java.util.ArrayList;
+import java.util.List;
+import ninja.leaping.configurate.ConfigurationNode;
+import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -53,12 +57,40 @@ public class HelpCommandsPlugin {
             }
         }
 
+        this.reloadCommands(configFile);
+    }
+
+    public void reloadCommands(final @NotNull File configFile) {
         final ConfigAdapter configAdapter;
         try {
             configAdapter = new ConfigAdapter(configFile.toPath());
         } catch (final IOException e) {
             this.logger.error("Cannot read help commands config.", e);
             return;
+        }
+
+        final TypeToken<String> stringToken = TypeToken.of(String.class);
+        for (final ConfigurationNode node : configAdapter.getChildrenList()) {
+            final List<String> aliases;
+            try {
+                aliases = node.getNode("alias").getList(stringToken, new ArrayList<>());
+            } catch (final ObjectMappingException e) {
+                this.logger.error("Cannot get command aliases.", e);
+                continue;
+            }
+
+            if (aliases.isEmpty()) {
+                continue;
+            }
+
+            this.server.getCommandManager().register(
+                this.server.getCommandManager()
+                    .metaBuilder(aliases.getFirst())
+                    .aliases(aliases.size() > 1 ? aliases.subList(1, aliases.size()).toArray(String[]::new) : new String[0])
+                    .plugin(this)
+                    .build(),
+                new HelpCommand(node)
+            );
         }
     }
 }
