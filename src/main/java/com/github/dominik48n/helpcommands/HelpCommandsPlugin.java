@@ -52,7 +52,7 @@ public class HelpCommandsPlugin {
 
     @Subscribe(order = PostOrder.LAST)
     public void handleProxyInitialize(final ProxyInitializeEvent event) {
-        final File configFile = new File(this.dataFolder.toFile(), CONFIG_NAME);
+        final File configFile = this.getConfigFile();
         if (configFile.getParentFile().mkdirs() || !configFile.exists()) {
             try (final InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME)) {
                 if (inputStream == null)
@@ -65,9 +65,19 @@ public class HelpCommandsPlugin {
         }
 
         this.reloadCommands(configFile);
+
+        this.server.getCommandManager().register("reloadhelpcommand", new ReloadCommand(this));
     }
 
-    public void reloadCommands(final @NotNull File configFile) {
+    @NotNull File getConfigFile() {
+        return new File(this.dataFolder.toFile(), CONFIG_NAME);
+    }
+
+    void reloadCommands() {
+        this.reloadCommands(this.getConfigFile());
+    }
+
+    void reloadCommands(final @NotNull File configFile) {
         try {
             this.helpCommandLock.lock();
 
