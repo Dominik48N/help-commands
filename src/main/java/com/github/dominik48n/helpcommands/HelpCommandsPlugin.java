@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.jetbrains.annotations.NotNull;
@@ -33,6 +35,9 @@ import org.slf4j.Logger;
     authors = {"Dominik48N"}
 )
 public class HelpCommandsPlugin {
+
+    private final @NotNull List<String> helpCommands = new ArrayList<>();
+    private final @NotNull Lock helpCommandLock = new ReentrantLock();
 
     private final @NotNull ProxyServer server;
     private final @NotNull Logger logger;
@@ -63,63 +68,79 @@ public class HelpCommandsPlugin {
     }
 
     public void reloadCommands(final @NotNull File configFile) {
-        final ConfigAdapter configAdapter;
         try {
-            configAdapter = new ConfigAdapter(configFile.toPath());
-        } catch (final IOException e) {
-            this.logger.error("Cannot read help commands config.", e);
-            return;
-        }
+            this.helpCommandLock.lock();
 
-        final TypeToken<String> stringToken = TypeToken.of(String.class);
-        final List<String> allAliases = new ArrayList<>();
-        int registeredCommands = 0;
-        for (final ConfigurationNode node : configAdapter.getChildrenList()) {
-            final List<String> aliases;
+            final ConfigAdapter configAdapter;
             try {
-                aliases = new ArrayList<>(node.getNode("alias").getList(stringToken, new ArrayList<>()));
-            } catch (final ObjectMappingException e) {
-                this.logger.error("Cannot get command aliases.", e);
-                continue;
+                configAdapter = new ConfigAdapter(configFile.toPath());
+            } catch (final IOException e) {
+                this.logger.error("Cannot read help commands config.", e);
+                return;
             }
 
-            if (aliases.isEmpty()) {
-                this.logger.warn("No configured command without aliases was found!");
-                continue;
+            if (this.helpCommands.size() > 0) {
+                for (final String commandName : this.helpCommands) {
+                    this.server.getCommandManager().unregister(commandName);
+                }
+
+                this.helpCommands.clear();
             }
 
-            for (final String alias : aliases) {
-                if (this.server.getCommandManager().getCommandMeta(alias) == null) {
+            final TypeToken<String> stringToken = TypeToken.of(String.class);
+            final List<String> allAliases = new ArrayList<>();
+            int registeredCommands = 0;
+            for (final ConfigurationNode node : configAdapter.getChildrenList()) {
+                final List<String> aliases;
+                try {
+                    aliases = new ArrayList<>(node.getNode("alias").getList(stringToken, new ArrayList<>()));
+                } catch (final ObjectMappingException e) {
+                    this.logger.error("Cannot get command aliases.", e);
                     continue;
                 }
 
-                aliases.remove(alias);
-                this.logger.warn("The alias \"{}\" is already in use and is therefore skipped.", alias);
+                if (aliases.isEmpty()) {
+                    this.logger.warn("No configured command without aliases was found!");
+                    continue;
+                }
+
+                for (final String alias : aliases) {
+                    if (this.server.getCommandManager().getCommandMeta(alias) == null) {
+                        continue;
+                    }
+
+                    aliases.remove(alias);
+                    this.logger.warn("The alias \"{}\" is already in use and is therefore skipped.", alias);
+                }
+
+                if (aliases.isEmpty()) {
+                    this.logger.warn("A command for which there are no free aliases was found and will not be registered.");
+                    continue;
+                }
+
+                final String mainAlias = aliases.getFirst();
+                this.server.getCommandManager().register(
+                    this.server.getCommandManager().metaBuilder(mainAlias)
+                        .aliases(aliases.size() > 1 ? aliases.subList(1, aliases.size()).toArray(String[]::new) : new String[0])
+                        .plugin(this)
+                        .build(),
+                    new HelpCommand(node)
+                );
+                this.helpCommands.add(mainAlias);
+
+                registeredCommands++;
+                allAliases.addAll(aliases);
             }
 
-            if (aliases.isEmpty()) {
-                this.logger.warn("A command for which there are no free aliases was found and will not be registered.");
-                continue;
+            this.server.getEventManager().fireAndForget(new LoadedHelpCommandsEvent(allAliases, registeredCommands));
+
+            if (registeredCommands > 0) {
+                this.logger.info("{} help commands with {} aliases were registered.", registeredCommands, allAliases.size());
+            } else {
+                this.logger.warn("No help commands were registered.");
             }
-
-            this.server.getCommandManager().register(
-                this.server.getCommandManager()
-                    .metaBuilder(aliases.getFirst())
-                    .aliases(aliases.size() > 1 ? aliases.subList(1, aliases.size()).toArray(String[]::new) : new String[0])
-                    .plugin(this)
-                    .build(),
-                new HelpCommand(node)
-            );
-            registeredCommands++;
-            allAliases.addAll(aliases);
-        }
-
-        this.server.getEventManager().fireAndForget(new LoadedHelpCommandsEvent(allAliases, registeredCommands));
-
-        if (registeredCommands > 0) {
-            this.logger.info("{} help commands with {} aliases were registered.", registeredCommands, allAliases.size());
-        } else {
-            this.logger.warn("No help commands were registered.");
+        } finally {
+            this.helpCommandLock.unlock();
         }
     }
 }
