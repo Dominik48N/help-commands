@@ -1,0 +1,11 @@
+[
+  {
+    "alias": ["help", "?"],
+    "message": "<gray>Use <green><click:run_command:/shop>/shop</click></green> to visit our online shop.<br>With <green><click:run_command:/spawn>/spawn</click></green>, you will be teleported to the spawn."
+  },
+  {
+    "alias": ["shop", "store", "onlineshop", "buy"],
+    "message": "<gray>[<aqua><bold>Shop</bold></aqua>] Our online shop<dark_gray>: <yellow><click:open_url:https://www.myserver.shop><hover:show_text:\"<gray>Click here to go to the online shop.\">myserver.shop</hover></click></yellow>",
+    "permission": "network.onlineshop"
+  }
+]
