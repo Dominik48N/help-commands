@@ -65,11 +65,10 @@ public class HelpCommandsPlugin {
         }
 
         this.reloadCommands(configFile);
-
         this.server.getCommandManager().register("reloadhelpcommands", new ReloadCommand(this));
     }
 
-    @NotNull File getConfigFile() {
+    private @NotNull File getConfigFile() {
         return new File(this.dataFolder.toFile(), CONFIG_NAME);
     }
 
