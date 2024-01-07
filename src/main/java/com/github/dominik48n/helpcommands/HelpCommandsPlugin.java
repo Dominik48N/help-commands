@@ -113,7 +113,7 @@ public class HelpCommandsPlugin {
                     continue;
                 }
 
-                for (final String alias : aliases) {
+                for (final String alias : new ArrayList<>(aliases)) {
                     if (this.server.getCommandManager().getCommandMeta(alias) == null) {
                         continue;
                     }
@@ -127,7 +127,7 @@ public class HelpCommandsPlugin {
                     continue;
                 }
 
-                final String mainAlias = aliases.getFirst();
+                final String mainAlias = aliases.get(0);
                 this.server.getCommandManager().register(
                     this.server.getCommandManager().metaBuilder(mainAlias)
                         .aliases(aliases.size() > 1 ? aliases.subList(1, aliases.size()).toArray(String[]::new) : new String[0])
@@ -135,7 +135,7 @@ public class HelpCommandsPlugin {
                         .build(),
                     new HelpCommand(node)
                 );
-                this.helpCommands.add(mainAlias);
+                this.helpCommands.addAll(aliases);
 
                 registeredCommands++;
                 allAliases.addAll(aliases);
