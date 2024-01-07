@@ -14,3 +14,9 @@ The plugin offers the possibility to create any number of help commands via a co
 * Restart the velocity server.
 * Configure the help commands in the `plugins/help-commands/config.json` file.
 * Run the `/reloadhelpcommands` command on the server.
+
+## Contributing
+Contributions to the Help Commands plugin are welcome! If you would like to contribute, please follow the guidelines in the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
+## License
+The Help Commands plugin is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](LICENSE) file for more information.
